@@ -1,8 +1,12 @@
 from .base import HairSegmenter
 from .bisenet import BiSeNetSegmenter
+from .fashn_parser import FASHNSegmenter
+from .segformer import SegFormerSegmenter
 
 _MODELS: dict[str, type[HairSegmenter]] = {
     "bisenet": BiSeNetSegmenter,
+    "fashn": FASHNSegmenter,
+    "segformer": SegFormerSegmenter,
 }
 
 _INSTANCES: dict[str, HairSegmenter] = {}
