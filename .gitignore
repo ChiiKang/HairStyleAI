@@ -4,5 +4,6 @@ __pycache__/
 .env
 models/
 *.pth
+generated_images/
 node_modules/
 dist/

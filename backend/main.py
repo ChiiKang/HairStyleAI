@@ -1,5 +1,7 @@
+import json
 import os
 import re
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -137,3 +139,40 @@ async def generate_hairstyles_endpoint(
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
     return JSONResponse(content=result)
+
+
+# --- Local Image Storage ---
+
+GENERATED_DIR = Path(__file__).parent / "generated_images"
+
+
+@app.get("/api/images/{session_id}/{filename}")
+async def serve_generated_image(session_id: str, filename: str):
+    """Serve a locally stored generated image."""
+    filepath = GENERATED_DIR / session_id / filename
+    if not filepath.exists() or not filepath.is_file():
+        raise HTTPException(status_code=404, detail="Image not found")
+    # Security: ensure path doesn't escape generated_images
+    if not filepath.resolve().is_relative_to(GENERATED_DIR.resolve()):
+        raise HTTPException(status_code=403, detail="Access denied")
+    content_type = "image/jpeg" if filename.endswith(".jpg") else "image/png"
+    return Response(content=filepath.read_bytes(), media_type=content_type)
+
+
+@app.get("/api/gallery")
+def list_gallery():
+    """List all past generation sessions, newest first."""
+    if not GENERATED_DIR.exists():
+        return {"sessions": []}
+    sessions = []
+    for session_dir in sorted(GENERATED_DIR.iterdir(), reverse=True):
+        meta_path = session_dir / "metadata.json"
+        if meta_path.exists():
+            with open(meta_path) as f:
+                meta = json.load(f)
+            # Add original selfie URL
+            original = session_dir / "original.png"
+            if original.exists():
+                meta["original"] = f"/api/images/{session_dir.name}/original.png"
+            sessions.append(meta)
+    return {"sessions": sessions}

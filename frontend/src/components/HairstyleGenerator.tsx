@@ -2,12 +2,14 @@ import { useState, useCallback } from "react";
 import { SelfieCapture } from "./SelfieCapture";
 import { GenerationModelSelector } from "./GenerationModelSelector";
 import { HairstyleGrid } from "./HairstyleGrid";
+import { Gallery } from "./Gallery";
 import { useHairstyleGenerator } from "../hooks/useHairstyleGenerator";
 
 export function HairstyleGenerator() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [model, setModel] = useState("openai/gpt-image-2");
+  const [galleryKey, setGalleryKey] = useState(0);
 
   const { results, loading, error, model: usedModel, durationMs, generate, reset } =
     useHairstyleGenerator();
@@ -24,9 +26,11 @@ export function HairstyleGenerator() {
     reset();
   }, [reset]);
 
-  const handleGenerate = useCallback(() => {
+  const handleGenerate = useCallback(async () => {
     if (!imageFile) return;
-    generate(imageFile, model);
+    await generate(imageFile, model);
+    // Refresh gallery after generation completes
+    setGalleryKey((k) => k + 1);
   }, [imageFile, model, generate]);
 
   const handleStartOver = useCallback(() => {
@@ -77,18 +81,20 @@ export function HairstyleGenerator() {
         <div className="rounded-lg bg-gray-900 px-3 py-2 text-xs text-gray-500 space-y-1">
           <p className="font-medium text-gray-400">How it works</p>
           <p>Upload your photo or take a selfie. The AI generates 4 hairstyle variations tailored to your face shape and features.</p>
-          <p>Try different models to compare quality and speed.</p>
+          <p>All generated images are saved locally and viewable below.</p>
         </div>
       </div>
 
       {/* Main content */}
-      <div>
+      <div className="space-y-8">
         <HairstyleGrid
           results={results}
           loading={loading}
           model={usedModel}
           durationMs={durationMs}
         />
+
+        <Gallery key={galleryKey} />
       </div>
     </div>
   );
