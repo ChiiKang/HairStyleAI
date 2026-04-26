@@ -1,12 +1,18 @@
+import os
 import re
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 import cv2
 import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from segmentation import get_segmenter, available_models
 from recolor.pipeline import clean_mask, recolor_hair
+from generation.models import available_generation_models, get_model_config
+from generation.fal_generator import generate_hairstyles
 
 app = FastAPI(title="Hair Color Change API")
 
@@ -92,3 +98,42 @@ async def recolor(
 
     _, buf = cv2.imencode(".png", result)
     return Response(content=buf.tobytes(), media_type="image/png")
+
+
+# --- Hairstyle Generation ---
+
+
+@app.get("/api/generation-models")
+def list_generation_models():
+    return {"models": available_generation_models()}
+
+
+@app.post("/api/generate-hairstyles")
+async def generate_hairstyles_endpoint(
+    image: UploadFile = File(...),
+    model: str = Form("fal-ai/luma-photon/flash"),
+):
+    config = get_model_config(model)
+    if not config:
+        models = [m["id"] for m in available_generation_models()]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown model: {model}. Available: {models}",
+        )
+
+    if not os.environ.get("FAL_KEY"):
+        raise HTTPException(
+            status_code=500,
+            detail="FAL_KEY environment variable is not set. Get one at https://fal.ai/dashboard/keys",
+        )
+
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Empty image file")
+
+    try:
+        result = await generate_hairstyles(image_bytes, model)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+
+    return JSONResponse(content=result)
