@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { SegmentationModel } from "../types";
 
 interface HairRecolorState {
   maskUrl: string | null;
   resultUrl: string | null;
-  loading: boolean;
+  segmenting: boolean;
+  recoloring: boolean;
   error: string | null;
 }
 
@@ -12,24 +13,26 @@ export function useHairRecolor() {
   const [state, setState] = useState<HairRecolorState>({
     maskUrl: null,
     resultUrl: null,
-    loading: false,
+    segmenting: false,
+    recoloring: false,
     error: null,
   });
 
-  const processImage = useCallback(
-    async (
-      imageFile: File,
-      model: SegmentationModel,
-      color: string,
-      intensity: number,
-      lift: number
-    ) => {
-      // Revoke old URLs to prevent memory leaks
+  // Cache the mask blob and image file so recolor can reuse them
+  const maskBlobRef = useRef<Blob | null>(null);
+  const imageFileRef = useRef<File | null>(null);
+  const recolorAbortRef = useRef<AbortController | null>(null);
+
+  const segment = useCallback(
+    async (imageFile: File, model: SegmentationModel) => {
+      // Clean up old state
       setState((s) => {
         if (s.maskUrl) URL.revokeObjectURL(s.maskUrl);
         if (s.resultUrl) URL.revokeObjectURL(s.resultUrl);
-        return { ...s, loading: true, error: null, maskUrl: null, resultUrl: null };
+        return { maskUrl: null, resultUrl: null, segmenting: true, recoloring: false, error: null };
       });
+      maskBlobRef.current = null;
+      imageFileRef.current = imageFile;
 
       try {
         const segForm = new FormData();
@@ -43,29 +46,62 @@ export function useHairRecolor() {
         if (!segRes.ok) throw new Error(`Segmentation failed: ${segRes.statusText}`);
 
         const maskBlob = await segRes.blob();
+        maskBlobRef.current = maskBlob;
         const maskUrl = URL.createObjectURL(maskBlob);
 
-        const recolorForm = new FormData();
-        recolorForm.append("image", imageFile);
-        recolorForm.append("mask", maskBlob, "mask.png");
-        recolorForm.append("color", color);
-        recolorForm.append("intensity", String(intensity));
-        recolorForm.append("lift", String(lift));
-
-        const recolorRes = await fetch("/api/recolor", {
-          method: "POST",
-          body: recolorForm,
-        });
-        if (!recolorRes.ok) throw new Error(`Recoloring failed: ${recolorRes.statusText}`);
-
-        const resultBlob = await recolorRes.blob();
-        const resultUrl = URL.createObjectURL(resultBlob);
-
-        setState({ maskUrl, resultUrl, loading: false, error: null });
+        setState((s) => ({ ...s, maskUrl, segmenting: false }));
+        return true;
       } catch (err) {
         setState((s) => ({
           ...s,
-          loading: false,
+          segmenting: false,
+          error: err instanceof Error ? err.message : "Unknown error",
+        }));
+        return false;
+      }
+    },
+    []
+  );
+
+  const recolor = useCallback(
+    async (color: string, intensity: number, lift: number, method: string) => {
+      if (!maskBlobRef.current || !imageFileRef.current) return;
+
+      // Abort any in-flight recolor request
+      recolorAbortRef.current?.abort();
+      const controller = new AbortController();
+      recolorAbortRef.current = controller;
+
+      setState((s) => {
+        if (s.resultUrl) URL.revokeObjectURL(s.resultUrl);
+        return { ...s, recoloring: true, resultUrl: null, error: null };
+      });
+
+      try {
+        const form = new FormData();
+        form.append("image", imageFileRef.current);
+        form.append("mask", maskBlobRef.current, "mask.png");
+        form.append("color", color);
+        form.append("intensity", String(intensity));
+        form.append("lift", String(lift));
+        form.append("method", method);
+
+        const res = await fetch("/api/recolor", {
+          method: "POST",
+          body: form,
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`Recoloring failed: ${res.statusText}`);
+
+        const resultBlob = await res.blob();
+        const resultUrl = URL.createObjectURL(resultBlob);
+
+        setState((s) => ({ ...s, resultUrl, recoloring: false }));
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setState((s) => ({
+          ...s,
+          recoloring: false,
           error: err instanceof Error ? err.message : "Unknown error",
         }));
       }
@@ -73,13 +109,18 @@ export function useHairRecolor() {
     []
   );
 
+  const hasMask = maskBlobRef.current !== null;
+
   const reset = useCallback(() => {
+    recolorAbortRef.current?.abort();
+    maskBlobRef.current = null;
+    imageFileRef.current = null;
     setState((s) => {
       if (s.maskUrl) URL.revokeObjectURL(s.maskUrl);
       if (s.resultUrl) URL.revokeObjectURL(s.resultUrl);
-      return { maskUrl: null, resultUrl: null, loading: false, error: null };
+      return { maskUrl: null, resultUrl: null, segmenting: false, recoloring: false, error: null };
     });
   }, []);
 
-  return { ...state, processImage, reset };
+  return { ...state, loading: state.segmenting || state.recoloring, hasMask, segment, recolor, reset };
 }

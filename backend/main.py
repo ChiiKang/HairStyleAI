@@ -57,6 +57,14 @@ async def segment(
     return Response(content=buf.tobytes(), media_type="image/png")
 
 
+RECOLOR_METHODS = ["reinhard", "shift", "overlay"]
+
+
+@app.get("/api/recolor-methods")
+def list_recolor_methods():
+    return {"methods": RECOLOR_METHODS, "default": "reinhard"}
+
+
 @app.post("/api/recolor")
 async def recolor(
     image: UploadFile = File(...),
@@ -64,12 +72,15 @@ async def recolor(
     color: str = Form("#FF0000"),
     intensity: int = Form(80),
     lift: int = Form(0),
+    method: str = Form("reinhard"),
 ):
     intensity = max(0, min(100, intensity))
     lift = max(0, min(40, lift))
     color = color.strip()
     if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
         raise HTTPException(status_code=400, detail=f"Invalid color hex: {color}")
+    if method not in RECOLOR_METHODS:
+        raise HTTPException(status_code=400, detail=f"Unknown method: {method}. Available: {RECOLOR_METHODS}")
 
     img_bytes = await image.read()
     mask_bytes = await mask.read()
@@ -77,7 +88,7 @@ async def recolor(
     img = _decode_image(img_bytes, cv2.IMREAD_COLOR)
     mask_arr = _decode_image(mask_bytes, cv2.IMREAD_GRAYSCALE)
 
-    result = recolor_hair(img, mask_arr, color, intensity, lift)
+    result = recolor_hair(img, mask_arr, color, intensity, lift, method=method)
 
     _, buf = cv2.imencode(".png", result)
     return Response(content=buf.tobytes(), media_type="image/png")
