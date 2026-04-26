@@ -48,14 +48,16 @@ export function useHairstyleGenerator() {
 
       const data = await res.json();
 
-      // Backend returns { images: [...base64 or urls], labels: [...], model, duration_ms }
+      // Backend returns { images: [...urls or null], labels: [...], model, duration_ms }
       const results: GeneratedResult[] = (data.images || []).map(
-        (img: string, i: number) => {
-          // Handle both base64 and URL responses
-          const isBase64 = img.startsWith("data:") || !img.startsWith("http");
-          const imageUrl = isBase64 && !img.startsWith("data:")
-            ? `data:image/png;base64,${img}`
-            : img;
+        (img: string | null, i: number) => {
+          if (!img) {
+            return { imageUrl: null, label: data.labels?.[i] || `Style ${i + 1}` };
+          }
+          // Local API paths start with /api/, CDN URLs start with http
+          const imageUrl = img.startsWith("/api/") || img.startsWith("http") || img.startsWith("data:")
+            ? img
+            : `data:image/png;base64,${img}`;
 
           return {
             imageUrl,

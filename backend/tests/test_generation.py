@@ -82,6 +82,27 @@ def test_luma_modify_passes_image_url():
     assert args["prompt"] == "test"
 
 
+def test_luma_modify_includes_required_fields():
+    """Luma modify requires strength and aspect_ratio — missing these causes 422."""
+    args = _build_luma_modify(prompt="test", image_url="https://example.com/img.png")
+    assert "strength" in args, "Luma modify requires 'strength' field"
+    assert "aspect_ratio" in args, "Luma modify requires 'aspect_ratio' field"
+    assert 0 < args["strength"] <= 1.0
+
+
+def test_all_model_builders_handle_required_fields():
+    """Every model builder must produce a complete args dict with no missing required fields."""
+    from generation.models import GENERATION_MODELS
+    for model_id, config in GENERATION_MODELS.items():
+        build_fn = config["build_input"]
+        args = build_fn(prompt="test prompt", image_url="https://example.com/img.png")
+        assert isinstance(args, dict), f"{model_id} build_input must return a dict"
+        assert "prompt" in args, f"{model_id} missing prompt"
+        # Image must be present in some form
+        has_image = "image_url" in args or "image_urls" in args
+        assert has_image, f"{model_id} missing image input"
+
+
 def test_all_models_pass_image():
     """Every model must accept and pass through the image URL."""
     for model_id, config in __import__('generation.models', fromlist=['GENERATION_MODELS']).GENERATION_MODELS.items():
@@ -188,3 +209,29 @@ def test_generate_returns_json(mock_gen):
     assert len(data["labels"]) == 4
     assert data["model"] == "fal-ai/luma-photon/flash"
     assert data["duration_ms"] == 5000
+
+
+@patch("main.generate_hairstyles")
+@patch.dict("os.environ", {"FAL_KEY": "test-key"}, clear=False)
+def test_generate_handles_null_images(mock_gen):
+    """Backend must return null for failed generations, not crash."""
+    mock_gen.return_value = {
+        "images": [None, "https://cdn.fal.ai/2.png", None, "https://cdn.fal.ai/4.png"],
+        "labels": ["Protective Braids", "Natural Twist-Out", "Silk Press", "Bantu Knots"],
+        "model": "fal-ai/luma-photon/flash",
+        "duration_ms": 3000,
+    }
+
+    img_bytes = _make_test_image()
+    r = client.post(
+        "/api/generate-hairstyles",
+        data={"model": "fal-ai/luma-photon/flash"},
+        files={"image": ("test.png", img_bytes, "image/png")},
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["images"]) == 4
+    assert data["images"][0] is None  # Failed generation
+    assert data["images"][1] is not None  # Successful generation
+    assert data["images"][2] is None
+    assert data["images"][3] is not None

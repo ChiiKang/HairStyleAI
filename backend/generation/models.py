@@ -31,10 +31,12 @@ def _build_qwen_edit(prompt: str, image_url: str, **_: Any) -> dict:
 
 
 def _build_luma_modify(prompt: str, image_url: str, **_: Any) -> dict:
-    """Luma Photon modify: image-to-image editing."""
+    """Luma Photon modify: image-to-image editing. Requires strength + aspect_ratio."""
     return {
         "prompt": prompt,
         "image_url": image_url,
+        "strength": 0.75,
+        "aspect_ratio": "1:1",
     }
 
 
