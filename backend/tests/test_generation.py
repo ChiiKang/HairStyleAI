@@ -10,10 +10,10 @@ from main import app
 from generation.models import (
     get_model_config,
     available_generation_models,
-    _build_luma_photon,
+    _build_luma_modify,
     _build_gpt_image_edit,
     _build_qwen_edit,
-    _build_seedream,
+    _build_seedream_edit,
     _parse_images_list,
 )
 from prompts.hairstyles import HAIRSTYLES, get_hairstyle_prompts
@@ -39,9 +39,7 @@ def test_each_hairstyle_has_required_fields():
         assert "id" in h
         assert "label" in h
         assert "edit_prompt" in h
-        assert "generate_prompt" in h
         assert len(h["edit_prompt"]) > 20
-        assert len(h["generate_prompt"]) > 20
 
 
 def test_get_hairstyle_prompts_edit_mode():
@@ -49,15 +47,16 @@ def test_get_hairstyle_prompts_edit_mode():
     assert len(prompts) == 4
     for p in prompts:
         assert "prompt" in p
-        assert "Keep the person" in p["prompt"] or "Transform" in p["prompt"]
+        assert "Edit only the hair" in p["prompt"]
+        assert "Do NOT change" in p["prompt"]
 
 
-def test_get_hairstyle_prompts_generate_mode():
-    prompts = get_hairstyle_prompts(use_edit=False)
-    assert len(prompts) == 4
+def test_prompts_are_edit_specific():
+    """All prompts must instruct the model to edit, not generate."""
+    prompts = get_hairstyle_prompts()
     for p in prompts:
-        assert "prompt" in p
-        assert "photorealistic" in p["prompt"].lower() or "portrait" in p["prompt"].lower()
+        assert "Only modify the hair" in p["prompt"]
+        assert "face" in p["prompt"].lower()  # mentions preserving face
 
 
 # --- Model config tests ---
@@ -76,12 +75,20 @@ def test_get_model_config_returns_none_for_unknown():
     assert get_model_config("nonexistent") is None
 
 
-def test_luma_input_uses_aspect_ratio():
-    """Luma Photon Flash uses aspect_ratio, not image_size."""
-    args = _build_luma_photon(prompt="test")
-    assert "aspect_ratio" in args
-    assert "image_size" not in args
-    assert "num_images" not in args  # Luma doesn't support num_images
+def test_luma_modify_passes_image_url():
+    """Luma Photon Modify takes image_url for editing."""
+    args = _build_luma_modify(prompt="test", image_url="https://example.com/img.png")
+    assert args["image_url"] == "https://example.com/img.png"
+    assert args["prompt"] == "test"
+
+
+def test_all_models_pass_image():
+    """Every model must accept and pass through the image URL."""
+    for model_id, config in __import__('generation.models', fromlist=['GENERATION_MODELS']).GENERATION_MODELS.items():
+        build_fn = config["build_input"]
+        args = build_fn(prompt="test", image_url="https://example.com/img.png")
+        has_image = "image_urls" in args or "image_url" in args
+        assert has_image, f"Model {model_id} does not pass image to the API"
 
 
 def test_gpt_edit_uses_image_urls_list():
@@ -100,10 +107,11 @@ def test_qwen_edit_uses_image_urls_list():
     assert isinstance(args["image_urls"], list)
 
 
-def test_seedream_uses_image_size():
-    args = _build_seedream(prompt="test")
-    assert "image_size" in args
-    assert args["image_size"] == "square_hd"
+def test_seedream_edit_passes_image_url():
+    """Seedream edit takes image_url for editing."""
+    args = _build_seedream_edit(prompt="test", image_url="https://example.com/img.png")
+    assert args["image_url"] == "https://example.com/img.png"
+    assert args["prompt"] == "test"
 
 
 def test_gpt_edit_endpoint_is_edit_variant():

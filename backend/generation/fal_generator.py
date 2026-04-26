@@ -73,18 +73,13 @@ async def generate_hairstyles(
     if not config:
         raise ValueError(f"Unknown generation model: {model_id}")
 
-    is_edit = config["type"] == "edit"
-    hairstyles = get_hairstyle_prompts(use_edit=is_edit)
+    # All models are image-editing — always upload the selfie
+    hairstyles = get_hairstyle_prompts(use_edit=True)
+    image_url = _upload_image(image_bytes)
 
-    # Upload image to fal CDN if using an edit model
-    image_url = None
-    if is_edit:
-        image_url = _upload_image(image_bytes)
-
-    # Use the actual fal.ai endpoint (may differ from frontend model ID)
     endpoint = config["endpoint"]
 
-    # Build arguments for each hairstyle
+    # Build arguments for each hairstyle — image_url is always passed
     tasks = []
     for style in hairstyles:
         build_fn = config["build_input"]

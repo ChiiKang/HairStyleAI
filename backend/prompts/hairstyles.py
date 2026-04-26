@@ -1,11 +1,14 @@
 """
-Hairstyle prompts for AI generation.
+Hairstyle prompts for AI image editing.
+
+IMPORTANT: These prompts are for IMAGE EDITING models. The AI receives the user's
+actual selfie and must modify ONLY the hairstyle while preserving everything else
+(face, skin, eyes, background, clothing, lighting).
 
 Each hairstyle has:
 - id: unique identifier
 - label: display name shown in the UI
-- edit_prompt: used with image-editing models (modifies the uploaded selfie)
-- generate_prompt: used with text-to-image models (generates a new image)
+- edit_prompt: the prompt sent to the image editing model
 
 Edit these prompts to improve generation quality.
 """
@@ -15,69 +18,56 @@ HAIRSTYLES = [
         "id": "protective-braids",
         "label": "Protective Braids",
         "edit_prompt": (
-            "Transform this person's hairstyle into long, neat protective box braids. "
-            "Keep the person's face, skin tone, and features exactly the same. "
-            "The braids should be medium-sized, well-defined, and fall past the shoulders. "
-            "Maintain the original photo's lighting, background, and composition."
-        ),
-        "generate_prompt": (
-            "A photorealistic portrait of a beautiful Black woman with long, neat protective "
-            "box braids falling past her shoulders. The braids are medium-sized and well-defined. "
-            "Natural skin, soft studio lighting, clean background, high detail, professional photo."
+            "Edit only the hair in this photo. Replace the current hairstyle with "
+            "long protective box braids that fall past the shoulders. The braids should "
+            "be medium-sized, neat, and well-defined. "
+            "Do NOT change the person's face, skin tone, facial features, eyes, "
+            "expression, clothing, background, or lighting. Keep everything else "
+            "exactly the same. Only modify the hair."
         ),
     },
     {
         "id": "natural-twist-out",
         "label": "Natural Twist-Out",
         "edit_prompt": (
-            "Transform this person's hairstyle into a voluminous natural twist-out. "
-            "Keep the person's face, skin tone, and features exactly the same. "
-            "The twist-out should show defined, bouncy curls with natural volume and texture. "
-            "Maintain the original photo's lighting, background, and composition."
-        ),
-        "generate_prompt": (
-            "A photorealistic portrait of a beautiful Black woman with a voluminous natural "
-            "twist-out hairstyle. Defined, bouncy curls with beautiful natural texture and volume. "
-            "Natural skin, soft studio lighting, clean background, high detail, professional photo."
+            "Edit only the hair in this photo. Replace the current hairstyle with "
+            "a voluminous natural twist-out showing defined, bouncy curls with "
+            "beautiful texture and volume. "
+            "Do NOT change the person's face, skin tone, facial features, eyes, "
+            "expression, clothing, background, or lighting. Keep everything else "
+            "exactly the same. Only modify the hair."
         ),
     },
     {
         "id": "silk-press",
         "label": "Silk Press",
         "edit_prompt": (
-            "Transform this person's hairstyle into a sleek, smooth silk press. "
-            "Keep the person's face, skin tone, and features exactly the same. "
-            "The hair should be straight, glossy, and flowing with a healthy shine. "
-            "Maintain the original photo's lighting, background, and composition."
-        ),
-        "generate_prompt": (
-            "A photorealistic portrait of a beautiful Black woman with a sleek, smooth silk press "
-            "hairstyle. The hair is straight, glossy, and flowing with a healthy shine. "
-            "Natural skin, soft studio lighting, clean background, high detail, professional photo."
+            "Edit only the hair in this photo. Replace the current hairstyle with "
+            "a sleek, smooth silk press. The hair should be straight, glossy, and "
+            "flowing with a healthy shine. "
+            "Do NOT change the person's face, skin tone, facial features, eyes, "
+            "expression, clothing, background, or lighting. Keep everything else "
+            "exactly the same. Only modify the hair."
         ),
     },
     {
         "id": "bantu-knots",
         "label": "Bantu Knots",
         "edit_prompt": (
-            "Transform this person's hairstyle into neat, symmetrical Bantu knots. "
-            "Keep the person's face, skin tone, and features exactly the same. "
-            "The Bantu knots should be evenly spaced, tightly coiled, and well-formed. "
-            "Maintain the original photo's lighting, background, and composition."
-        ),
-        "generate_prompt": (
-            "A photorealistic portrait of a beautiful Black woman with neat, symmetrical Bantu "
-            "knots hairstyle. The knots are evenly spaced, tightly coiled, and well-formed. "
-            "Natural skin, soft studio lighting, clean background, high detail, professional photo."
+            "Edit only the hair in this photo. Replace the current hairstyle with "
+            "neat, symmetrical Bantu knots. The knots should be evenly spaced, "
+            "tightly coiled, and well-formed across the head. "
+            "Do NOT change the person's face, skin tone, facial features, eyes, "
+            "expression, clothing, background, or lighting. Keep everything else "
+            "exactly the same. Only modify the hair."
         ),
     },
 ]
 
 
 def get_hairstyle_prompts(use_edit: bool = True) -> list[dict]:
-    """Return hairstyle configs with the appropriate prompt field selected."""
-    key = "edit_prompt" if use_edit else "generate_prompt"
+    """Return hairstyle configs with the prompt field."""
     return [
-        {"id": h["id"], "label": h["label"], "prompt": h[key]}
+        {"id": h["id"], "label": h["label"], "prompt": h["edit_prompt"]}
         for h in HAIRSTYLES
     ]

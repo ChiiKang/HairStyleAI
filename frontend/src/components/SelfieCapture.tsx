@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 
 interface Props {
   onImageCaptured: (file: File, previewUrl: string) => void;
@@ -10,28 +10,55 @@ export function SelfieCapture({ onImageCaptured, previewUrl }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [streaming, setStreaming] = useState(false);
+  const [cameraRequested, setCameraRequested] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: 512, height: 512 },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+  // Acquire the camera stream when requested
+  useEffect(() => {
+    if (!cameraRequested) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 512 }, height: { ideal: 512 } },
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        setStreaming(true);
+      } catch {
+        if (!cancelled) {
+          setCameraRequested(false);
+          alert("Could not access camera. Please upload a photo instead.");
+        }
       }
-      setStreaming(true);
-    } catch {
-      alert("Could not access camera. Please upload a photo instead.");
-    }
-  }, []);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cameraRequested]);
+
+  // Attach stream to video element AFTER it's rendered (streaming = true)
+  useEffect(() => {
+    if (!streaming || !streamRef.current) return;
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.srcObject = streamRef.current;
+    video.play().catch(() => {});
+  }, [streaming]);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setStreaming(false);
+    setCameraRequested(false);
   }, []);
 
   const takeSelfie = useCallback(() => {
@@ -103,6 +130,7 @@ export function SelfieCapture({ onImageCaptured, previewUrl }: Props) {
             ref={videoRef}
             className="mx-auto max-h-72 rounded-xl object-contain"
             style={{ transform: "scaleX(-1)" }}
+            autoPlay
             muted
             playsInline
           />
@@ -130,10 +158,11 @@ export function SelfieCapture({ onImageCaptured, previewUrl }: Props) {
           <p className="text-gray-400">Upload a photo or take a selfie</p>
           <div className="flex gap-3 justify-center">
             <button
-              onClick={startCamera}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition"
+              onClick={() => setCameraRequested(true)}
+              disabled={cameraRequested}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition disabled:opacity-50"
             >
-              Open Camera
+              {cameraRequested ? "Opening..." : "Open Camera"}
             </button>
             <button
               onClick={() => inputRef.current?.click()}

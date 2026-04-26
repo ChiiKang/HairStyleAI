@@ -6,8 +6,8 @@ interface Props {
 const MODELS = [
   {
     id: "openai/gpt-image-2",
-    label: "GPT Image 2",
-    desc: "OpenAI, high quality",
+    label: "GPT Image 2 Edit",
+    desc: "OpenAI, high quality editing",
     cost: "$0.04-0.17/img",
   },
   {
@@ -18,14 +18,14 @@ const MODELS = [
   },
   {
     id: "fal-ai/luma-photon/flash",
-    label: "Luma Photon Flash",
-    desc: "Fast text-to-image",
+    label: "Luma Photon Modify",
+    desc: "Fast image editing",
     cost: "$0.005/MP",
   },
   {
     id: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-    label: "Seedream 5.0 Lite",
-    desc: "ByteDance, reasoning",
+    label: "Seedream 5.0 Edit",
+    desc: "ByteDance image editing",
     cost: "$0.035/img",
   },
 ];
