@@ -49,6 +49,46 @@ def _build_seedream_edit(prompt: str, image_url: str, **_: Any) -> dict:
     }
 
 
+def _build_flux_kontext(prompt: str, image_url: str, **_: Any) -> dict:
+    """FLUX Kontext dev: SOTA instruction editing with identity preservation."""
+    return {
+        "prompt": prompt,
+        "image_url": image_url,
+    }
+
+
+def _build_flux2_edit(prompt: str, image_url: str, **_: Any) -> dict:
+    """FLUX.2 edit: next-gen editing, uses image_urls (plural, list)."""
+    return {
+        "prompt": prompt,
+        "image_urls": [image_url],
+    }
+
+
+def _build_grok_edit(prompt: str, image_url: str, **_: Any) -> dict:
+    """Grok Imagine edit: cheapest flat-rate option."""
+    return {
+        "prompt": prompt,
+        "image_url": image_url,
+    }
+
+
+def _build_chrono_edit(prompt: str, image_url: str, **_: Any) -> dict:
+    """NVIDIA Chrono Edit LoRA: physics-aware editing."""
+    return {
+        "prompt": prompt,
+        "image_url": image_url,
+    }
+
+
+def _build_hair_change(prompt: str, image_url: str, **_: Any) -> dict:
+    """Dedicated hair change endpoint: free-text hairstyle prompt."""
+    return {
+        "image_url": image_url,
+        "hair_style_prompt": prompt,
+    }
+
+
 def _parse_images_list(result: dict) -> list[str]:
     """Standard parser: result has 'images' list with 'url' fields."""
     images = result.get("images", [])
@@ -95,6 +135,46 @@ GENERATION_MODELS = {
         "name": "Seedream 5.0 Edit",
         "cost": "$0.035/img",
         "build_input": _build_seedream_edit,
+        "parse_output": _parse_images_list,
+    },
+    "fal-ai/flux-kontext/dev": {
+        "id": "fal-ai/flux-kontext/dev",
+        "endpoint": "fal-ai/flux-kontext/dev",
+        "name": "FLUX Kontext",
+        "cost": "$0.025/MP",
+        "build_input": _build_flux_kontext,
+        "parse_output": _parse_images_list,
+    },
+    "fal-ai/flux-2/edit": {
+        "id": "fal-ai/flux-2/edit",
+        "endpoint": "fal-ai/flux-2/edit",
+        "name": "FLUX.2 Edit",
+        "cost": "$0.024/img",
+        "build_input": _build_flux2_edit,
+        "parse_output": _parse_images_list,
+    },
+    "xai/grok-imagine-image/edit": {
+        "id": "xai/grok-imagine-image/edit",
+        "endpoint": "xai/grok-imagine-image/edit",
+        "name": "Grok Imagine Edit",
+        "cost": "$0.022/img",
+        "build_input": _build_grok_edit,
+        "parse_output": _parse_images_list,
+    },
+    "fal-ai/chrono-edit-lora": {
+        "id": "fal-ai/chrono-edit-lora",
+        "endpoint": "fal-ai/chrono-edit-lora",
+        "name": "Chrono Edit LoRA",
+        "cost": "$0.02/img",
+        "build_input": _build_chrono_edit,
+        "parse_output": _parse_images_list,
+    },
+    "fal-ai/image-editing/hair-change": {
+        "id": "fal-ai/image-editing/hair-change",
+        "endpoint": "fal-ai/image-editing/hair-change",
+        "name": "Hair Change (Dedicated)",
+        "cost": "$0.04/img",
+        "build_input": _build_hair_change,
         "parse_output": _parse_images_list,
     },
 }

@@ -8,7 +8,7 @@ import { useHairstyleGenerator } from "../hooks/useHairstyleGenerator";
 export function HairstyleGenerator() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [model, setModel] = useState("openai/gpt-image-2");
+  const [model, setModel] = useState("fal-ai/flux-kontext/dev");
   const [galleryKey, setGalleryKey] = useState(0);
 
   const { results, loading, error, model: usedModel, durationMs, generate, reset } =

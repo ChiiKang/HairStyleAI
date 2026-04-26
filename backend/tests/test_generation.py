@@ -64,11 +64,16 @@ def test_prompts_are_edit_specific():
 
 def test_all_models_available():
     models = available_generation_models()
-    assert len(models) == 4
+    assert len(models) == 9
     ids = [m["id"] for m in models]
     assert "fal-ai/luma-photon/flash" in ids
     assert "openai/gpt-image-2" in ids
     assert "fal-ai/qwen-image-edit-plus" in ids
+    assert "fal-ai/flux-kontext/dev" in ids
+    assert "fal-ai/flux-2/edit" in ids
+    assert "xai/grok-imagine-image/edit" in ids
+    assert "fal-ai/chrono-edit-lora" in ids
+    assert "fal-ai/image-editing/hair-change" in ids
 
 
 def test_get_model_config_returns_none_for_unknown():
@@ -97,7 +102,9 @@ def test_all_model_builders_handle_required_fields():
         build_fn = config["build_input"]
         args = build_fn(prompt="test prompt", image_url="https://example.com/img.png")
         assert isinstance(args, dict), f"{model_id} build_input must return a dict"
-        assert "prompt" in args, f"{model_id} missing prompt"
+        # Models use either 'prompt' or 'hair_style_prompt'
+        has_prompt = "prompt" in args or "hair_style_prompt" in args
+        assert has_prompt, f"{model_id} missing prompt field"
         # Image must be present in some form
         has_image = "image_url" in args or "image_urls" in args
         assert has_image, f"{model_id} missing image input"
@@ -160,7 +167,7 @@ def test_generation_models_endpoint():
     assert r.status_code == 200
     data = r.json()
     assert "models" in data
-    assert len(data["models"]) == 4
+    assert len(data["models"]) == 9
 
 
 def test_generate_rejects_unknown_model():
